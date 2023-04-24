@@ -1,0 +1,80 @@
+보내준 PDF를 바탕으로 시도 -> 영어까지는 문제없었으나 버전상 문제 발생
+-> 해결하기위해 구글링 마이크로소프트 설명서와 MySql 설명서 체크
+
+그중 MySQL 개발자 설명서에 sakila 데이터베이스 연결방법에 대한 설명서 발견 
+https://dev.mysql.com/doc/connector-net/en/connector-net-entityframework-core-scaffold-example.html
+보면서 연결 시도 -> 알고보니 다른 내용이라 다시 찾아야함
+
+일단 자습서에 적혀진 MySQL.EntityFrameworkCore 설치
+    <PackageReference Include="MySQL.EntityFrameworkCore" Version="7.0.2" />
++ Pomelo.EntityFrameworkCore.MySql 라는 데이터베이스 공급자를 사용해야 데이터베이스에 연결할 수 있다는 정보를 찾음
+    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="7.0.0" />
+
+그리고 연결하려는 서버 정보와 아이디, 비밀번호 추가
+appsettings.json
+  "ConnectionStrings": {
+    "MySqlConnection": "server=localhost;port=3306;database=sakila;user=root;password=<your_password>;"
+  }
+보안상 문제로 원본으로 올림
+
+.net 7.0 버전 이상에서는 startup.cs가 없는 상태여서 program.cs에 mysql 연결 시도
+// Mysql 연결
+var connectionString = builder.Configuration.GetConnectionString("Connecting");
+builder.Services.AddDbContext<SakilaContext>(options =>
+    options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString), null));
+
+Models 폴더 생성 후 
+SakilaContext.cs 파일과 Language.cs 파일 생성 및 namespace Sakila.Models로 구성
+
+SakilaController.cs 에서 Sakila.Models을 사용
+namespace SakilaMovie.Controllers
+{
+    [ApiController]
+    [Route("[controller]")]
+    public class LanguageController : ControllerBase
+    {
+        private readonly SakilaContext _context;
+
+        public LanguageController(SakilaContext context)
+        {
+            _context = context;
+        }
+
+        [HttpGet]
+        public IActionResult Get()
+        {
+            var languages = _context.getLanguage.ToList();
+            return Ok(languages);
+        }
+        [HttpPost]
+        public IActionResult Post()
+        {
+            var languages = _context.postLanguage.ToList();
+            return Ok(languages);
+        }
+        [HttpPatch]
+        public IActionResult Patch()
+        {
+            var languages = _context.patchLanguage.ToList();
+            return Ok(languages);
+        }
+        [HttpDelete]
+        public IActionResult Delete()
+        {
+            var languages = _context.deleteLanguage.ToList();
+            return Ok(languages);
+        }
+    }
+}
+
+입력 후 구동 -> 성공
+
+
+실험삼아 Get방식 요청 시도 ->
+MySqlConnector.MySqlException (0x80004005) 에러 발생
+원인을 찾아보니 appsettings.json에서 셋팅이 잘못된거 같은 의심 -> 확인 후 이상없음 
+
+program.cs에서 확인 ->
+var connectionString = builder.Configuration.GetConnectionString("Connecting"); 에서 문자열 Connecting이 문제였음을 확인
+MySqlConnection으로 변경후 시도
+-> 연결 오류 해결 및 컬럼명 오류 발생
